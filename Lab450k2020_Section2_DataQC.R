@@ -144,6 +144,7 @@ pd <- pData( noob )
 ##Sex Check
 GmRawSet <- mapToGenome( rawMSet )
 sex <- getSex( GmRawSet )
+sex <- addSex( GmRawSet, sex = sex )
 # #save(sex, file="Estimate-Sex.rda")
 pd <- merge( pd, as.matrix( sex ), by = "row.names", sort = FALSE )
 rownames( pd ) <- pd$Basename
