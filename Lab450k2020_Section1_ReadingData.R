@@ -9,19 +9,19 @@
 ### INSTALL RELEVANT PACKAGES (ONLY DO ONCE)
 ##################################################
 
-if ( !requireNamespace( "BiocManager" ) ) install.packages( "BiocManager" )
-BiocManager::install( "minfi" )
-BiocManager::install( "limma" )
-BiocManager::install( "IlluminaHumanMethylation450kmanifest" )
-BiocManager::install( "IlluminaHumanMethylation450kanno.ilmn12.hg19" )
-BiocManager::install( "sva" )
-BiocManager::install( "FlowSorted.Blood.450k" )
-install.packages( "RColorBrewer" )
-install.packages( "ggplot2" )
-install.packages( "matrixStats" )
-install.packages( "MASS" )
-install.packages( "abind" )
-install.packages( "Hmisc" )
+#if ( !requireNamespace( "BiocManager" ) ) install.packages( "BiocManager" )
+#BiocManager::install( "minfi" )
+#BiocManager::install( "limma" )
+#BiocManager::install( "IlluminaHumanMethylation450kmanifest" )
+#BiocManager::install( "IlluminaHumanMethylation450kanno.ilmn12.hg19" )
+#BiocManager::install( "sva" )
+#iocManager::install( "FlowSorted.Blood.450k" )
+#install.packages( "RColorBrewer" )
+#install.packages( "ggplot2" )
+#install.packages( "matrixStats" )
+#install.packages( "MASS" )
+#install.packages( "abind" )
+#install.packages( "Hmisc" )
 
 
 

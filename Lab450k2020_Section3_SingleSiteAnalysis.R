@@ -65,7 +65,7 @@ out <- eBayes( out )
 ss.hits <- topTable( out, coef = 2, number = nrow( combat.beta ) )
 
 #Make a qq plot of our data
-install.packages( "qqman" )
+#install.packages( "qqman" )
 library( qqman )
 #png("qqplot.png",type="cairo")
 qq( ss.hits$P.Value )

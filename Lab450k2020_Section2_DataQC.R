@@ -144,8 +144,8 @@ pd <- pData( noob )
 ##Sex Check
 GmRawSet <- mapToGenome( rawMSet )
 sex <- getSex( GmRawSet )
-sex <- addSex( GmRawSet, sex = sex )
-# #save(sex, file="Estimate-Sex.rda")
+sex2 <- addSex( GmRawSet, sex = sex )
+# #save(sex2, file="Estimate-Sex.rda")
 pd <- merge( pd, as.matrix( sex ), by = "row.names", sort = FALSE )
 rownames( pd ) <- pd$Basename
 pd <- pd[,-1]
@@ -154,7 +154,7 @@ table( pd$predictedSex, pd$gender )
   # F 22  0
   # M  0 18
 pdf( "Sex-Plot.pdf" )
-plotSex( sex )
+plotSex( sex2 )
 dev.off()
 
 ##################################################
