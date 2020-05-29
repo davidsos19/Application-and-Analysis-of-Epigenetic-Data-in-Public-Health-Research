@@ -29,3 +29,9 @@ install.packages( "qqman" )
 
 ### Install nlme -- Functions for non-linear mixed effects models
 install.packages( "nlme" )
+
+### Install other R packages
+install.packages( c( "MaxtrixStats", "MASS", "abind", "Hmisc", "BiasedUrn" ) )
+
+### Install packages for using 450k
+BiocManager::install( c( "IlluminaHumanMethylation450kmanifest","IlluminaHumanMethylation450kanno.ilmn12.hg19", "FlowSorted.Blood.450k" ) )
