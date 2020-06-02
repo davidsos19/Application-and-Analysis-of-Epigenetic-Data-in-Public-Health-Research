@@ -154,7 +154,7 @@ mpg %>% group_by(class) %>% summarize(cty_avg=mean(cty))
 
 ## lets read in the results from a recent preprint
 ## https://www.biorxiv.org/content/10.1101/426213v1
-res = read_csv("SupplementaryTable2_sczd_gene_full.csv")
+res = read_csv("data/SupplementaryTable2_sczd_gene_full.csv")
 
 ## filter on expression level and drop `gencodeTx` column
 resExprsDlpfc = res %>% select(-gencodeTx) %>% filter(region == "DLPFC")
