@@ -1,0 +1,435 @@
+---
+title: "Johns Hopkins Summer Institute: Epigenomics in Public Health Lab 2020"
+subtitle: "02 Quality control of datasets"
+author: "Kelly Bakulski, David Sosnowski, Shan Andrews, Brion Maher"
+date: "May 29, 2020"
+output: html_document
+---
+
+# Setting up R markdown format
+```{r setup, include=FALSE, eval=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Installing relevant packages (only do once per computer)
+```{r install packages, include=FALSE, eval=FALSE}
+#If you're running code on your personal computer, set eval=TRUE.
+#Since we're running code on the Cloud, these packages have already been installed and it is not necessary to re-install. 
+
+### Install BiocManager -- Allows user to install Bioconductor packages
+if ( !requireNamespace( "BiocManager" ) ) install.packages( "BiocManager" )
+
+### Install minfi -- 450k analysis package
+BiocManager::install( "bumphunter" ) 
+BiocManager::install( "minfi" )
+
+### Install RColorBrewer -- Useful package that provides color palettes to help visualize data
+install.packages( "RColorBrewer" )
+
+### Install sva -- Functions for batch effect correction
+BiocManager::install( "sva" )
+
+### Install limma -- Functions for single-site association analysis
+BiocManager::install( "limma" )
+
+### Install ggplot2 -- Easy plotting functions
+install.packages( "ggplot2" )
+
+### Install Go.db and topGo -- Functions for gene ontology queries
+BiocManager::install( c( "GO.db","topGO","missMethyl", "GEOquery" ) )
+
+### Install qqman -- Functions for q-q and manhattan plots
+install.packages( "qqman" )
+
+### Install nlme -- Functions for non-linear mixed effects models
+install.packages( "nlme" )
+
+### Install BiasedUrn -- Functions for hypergenometric distributions
+install.packages( "BiasedUrn" )
+
+### Install reference package for cell type estimation in adult blood, can switch depending on tissue of interest.
+BiocManager::install( "FlowSorted.Blood.450k" )
+```
+
+# Load relevant packages (do this every time you do an analysis)
+```{r load packages}
+library( minfi )
+library( MASS )
+library( abind )
+library( sva )
+library( Hmisc )
+library( ggplot2 )
+library( FlowSorted.Blood.450k )
+```
+
+# Setting file paths for data, output, scripts
+```{r source data/output}
+# Setting file paths for data, output, scripts
+
+#The rest of this script assumes that your data are in a folder called "project" on the Cloud.
+#It also assumes that your ouptut will be stored in a subfolder called "output" on the Cloud. 
+#As you work on your own computer, you will need to specify the folder locations.
+
+# Folder location of the data files
+#data_dir <- "/cloud/project/"
+data_dir <- "~/Documents/GitHub/Application-and-Analysis-of-Epigenetic-Data-in-Public-Health-Research/data/" #Kelly's personal computer directory
+data_dir
+# Folder location to put the output files
+#output_dir <- "/cloud/project/output/"
+output_dir <- "~/Documents/GitHub/Application-and-Analysis-of-Epigenetic-Data-in-Public-Health-Research/output/" #Kelly's personal computer directory
+output_dir
+# Record the current date for record keeping and appending to output file names
+date<-format(Sys.Date(), "%Y%m%d") 
+date
+```
+
+# Read in the data
+```{r load data}
+load( paste0(data_dir, "RGset.rda"))
+pd <- pData( RGset )
+```
+
+# Set up color palettes for plotting 
+```{r color palettes}
+#Set up color palettes for plotting
+myColors <- c( "dodgerblue", "firebrick1", "seagreen3" )
+graphColors = c( "#023FA5","#7D87B9","#BEC1D4","#D6BCC0","#BB7784", "#D33F6A", "#11C638","#8DD593","#C6DEC7","#EAD3C6",
+                "#F0B98D","#EF9708", "#0FCFC0","#9CDED6","#D5EAE7","#F3E1EB","#F6C4E1","#F79CD4", "#4A6FE3","#8595E1",
+                "#B5BBE3","#E6AFB9","#E07B91" )
+```
+
+# Extract methylated and unmethylated signals
+```{r extract methylated signals}
+# MethylSet (Mset) contains metylated and unmethylated signals made using preprocessRaw()
+rawMSet <- preprocessRaw( RGset )
+rawMSet
+#save( rawMSet, file = "rawMSet.rda" ) 
+#M signal per probe, per sample
+Meth <- getMeth( rawMSet )
+Meth[ 1:5, 1:5 ]
+#M signal per probe, per sample
+Unmeth <- getUnmeth( rawMSet )
+Unmeth[ 1:5, 1:5 ]
+```
+
+# Visualize raw intensities
+```{r visualize raw intensities}
+#################################################
+#Overall intensity: M vs. U
+pd$MQC <- log2( colMedians( Meth ) )
+pd$UQC <- log2( colMedians( Unmeth ) )
+
+pd$Array <- factor( pd$Array )
+palette( graphColors )
+pdf( paste0(output_dir,"MvsUplot.pdf" ))
+plot( pd$UQC, pd$MQC, main = "M vs. U QC", pch = 16, xlab = "Log2 Median Unmethylated Intensity", ylab = "Log2 Median Methylated Intensity", cex.lab = 1.2, cex.main = 2 )
+plot( pd$UQC, pd$MQC, col = as.factor( pd$Slide ), main = "M vs. U QC by Slide", pch = 16, xlab = "Log2 Median Unmethylated Intensity", ylab = "Log2 Median Methylated Intensity", cex.lab = 1.2, cex.main = 2 )
+legend( "bottomright",levels(as.factor( pd$Slide ) ), fill = graphColors )
+plot( pd$UQC, pd$MQC, col = pd$Array, main = "M vs. U QC by Position", pch = 16, xlab = "Log2 Median Unmethylated Intensity", ylab = "Log2 Median Methylated Intensity", cex.lab = 1.2, cex.main = 2 )
+legend( "bottomright", levels( pd$Array ), fill = graphColors )
+palette( myColors )
+plot( pd$UQC, pd$MQC, col = pd$Batch, main = "M vs. U QC by Batch", pch = 16, xlab = "Log2 Median Unmethylated Intensity", ylab = "Log2 Median Methylated Intensity", cex.lab = 1.2, cex.main = 2 )
+legend( "bottomright", c( "Batch 1", "Batch 2" ), fill = myColors )
+dev.off()
+```
+
+# Drop or flag low intensity samples
+```{r flag/drop low intesity samples}
+#Drop (or if really small sample: watch out for): Samples with UQC<11 & MQC<11
+# Note the cutoff value (here, 11) would depend on your data and array (EPIC/450k)
+which( pd$UQC < 11 ) 
+length( which( pd$UQC < 11 ) )
+which( pd$MQC < 11 )
+length( which( pd$MQC < 11 ) )
+```
+
+# Raw density plot
+```{r raw density plot}
+#Raw density plot
+beta.raw <- getBeta( rawMSet )
+mvalue.raw <- getM( rawMSet )
+type <- getProbeType( rawMSet )
+probe.type <- data.frame( Name = rownames( beta.raw ), Type = type )
+
+pdf(paste0(output_dir, "Density-plot-preproccessRaw.pdf" ))
+densityPlot( beta.raw, sampGroups = pd$casestatus, main = "Raw Beta by Case Status" )
+densityPlot( beta.raw, sampGroups = pd$Batch, main = "Raw Beta by Batch" )
+plotBetasByType( beta.raw[,1], probeTypes = probe.type, main = "Raw Beta by Probe Type, Sample 1" )
+densityPlot( mvalue.raw, sampGroups = pd$Batch, main = "Raw M-value by Batch", xlab = "M-value" )
+dev.off()
+
+```
+
+# Calculate principal components on raw data
+```{r raw principal components}
+beta.raw2 <- beta.raw
+beta.raw2[ is.na( beta.raw2 ) ] <- 0
+
+#makes the principal component object
+prin <- prcomp( t( beta.raw2 ), center = T, scale. = F ) 
+
+#pulls out proportion of variance explained by each PC
+out.var <- prin$sdev^2 / sum( prin$sdev^2 ) #the percent variance at each PC
+out.var[ 1:10 ]
+sum( out.var )
+```
+
+# Raw principal component plot
+```{r raw principal component plot}
+#Raw PCA plots
+pdf( paste0(output_dir,"PCA-plots-Raw.pdf" ))
+screeplot( prin, col = "dodgerblue", xlab = "Principal Components of Raw Beta Values", main = "", cex.lab = 1.3 )
+plot.new()
+palette( myColors )
+par( mar = c( 0, 0, 0, 0 ) )
+legend( "bottom", levels( as.factor( pd$gender ) ), fill = myColors, title = "Principal Components by Sex" )
+pairs( prin$x[,1:6], col = as.factor( pd$gender ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch = 1, cex = 0.5 )
+plot.new()
+legend( "bottom", levels( as.factor( pd$Batch ) ), fill = myColors, title = "Principal Components by Batch" )
+pairs( prin$x[,1:6], col = as.factor( pd$Batch ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch = 1, cex = 0.5 )
+plot.new()
+palette( graphColors )
+legend( "bottom", levels( as.factor( pd$Array ) ), fill = graphColors, title = "Principal Components by Array Position" )
+pairs( prin$x[,1:6], col = as.factor( pd$Array ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch = 1, cex = 0.5 )
+plot.new()
+legend( "bottom", levels( as.factor( pd$Slide ) ), fill = graphColors, title = "Principal Components by Slide" )
+pairs( prin$x[,1:6], col = as.factor( pd$Slide ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch = 1, cex = 0.5 )
+dev.off()
+```
+
+
+```{r calculate detection P}
+##################################################
+#Detection P 
+detP <- detectionP( RGset )
+dim( detP )
+acorn( detP )
+detP[ 1:5, 1:5 ]
+#save(detP,file=paste0(data_dir, "detection-P.rda"))
+failed <- detP > 0.01
+per.samp <- colMeans( failed ) # Fraction of failed positions per sample (length: 42)
+summary( per.samp ) 
+per.probe <- rowMeans( failed ) # Fraction of failed samples per position (length: 485512)
+summary( per.probe )
+sum( per.samp > 0.01 ) #How many samples had more than 1% of sites fail?
+sum( per.probe > 0.1 ) # How many positions failed in >10% of samples? 
+
+# Identify samples that are failed
+probe.fail <- failed[ per.probe > 0.1, ]
+length(probe.fail)
+sample.fail <- per.samp[per.samp > 0.01 ]
+sample.fail
+```
+
+# Plot detection P
+```{r plot detection P}
+pdf( paste0(output_dir,"DetectionP-bySample.pdf" ))
+hist( per.samp, breaks = 40, col = "dodgerblue", cex.lab = 1.3, xlab = "Fraction of failed positions per sample" )
+abline( v = 0.01, col = "red" )
+hist( per.probe, breaks = 40, col = "dodgerblue", cex.lab = 1.3, xlab = "Fraction of failed samples per probe", ylim = c( 0,500 ) )
+abline( v = 0.1, col = "red",lwd = 2 )
+dev.off()
+```
+
+# Drop problem samples
+```{r drop problem samples}
+RGset.drop <- RGset[ ,!colnames( RGset ) %in% names( sample.fail ) ] #Drop samples that failed by detection p. 
+dim( RGset.drop )
+```
+
+# Cross-reactive probes
+```{r cross-reactive probes}
+##################################################
+
+load( paste0(data_dir,"cross.probes.info.rda" ))
+dim( cross.probes.info )
+head( cross.probes.info )
+#rec is to use the 47 cross probe cutoff
+```
+
+# Noob preprocessing
+```{r noob preprocessing}
+#Noob
+noob <- preprocessNoob( RGset.drop, offset = 15, dyeCorr = TRUE, verbose = TRUE )
+
+noob.dropP <- noob[ !rownames( noob ) %in% rownames( probe.fail ), ]
+noob.dropCross <- noob.dropP[ !rownames( noob.dropP ) %in% cross.probes.info$TargetID, ]
+
+noob <- noob.dropCross
+#save(noob, file=paste0(data_dir,"noob.rda"))
+beta.n <- getBeta( noob )
+
+pd <- pData( noob )
+##################################################
+```
+
+# Check sex
+```{r check sex}
+GmRawSet <- mapToGenome( rawMSet )
+sex <- getSex( GmRawSet )
+# #save(sex, file=paste0(data_dir,"Estimate-Sex.rda"))
+pd <- merge( pd, as.matrix( sex ), by = "row.names", sort = FALSE )
+rownames( pd ) <- pd$Basename
+pd <- pd[,-1]
+table( pd$predictedSex, pd$gender )
+     # F  M
+  # F 22  0
+  # M  0 18
+pdf( paste0(output_dir,"Sex-Plot.pdf" ))
+#plotSex( sex )
+palette( myColors )
+plot(sex$xMed, sex$yMed, col=as.factor(sex$predictedSex), las=1, xlab="X chr, median total intensity (log2)", ylab="Y chr, median total intensity (log2)")
+legend("bottomleft", col=myColors[1:2], legend=levels(as.factor(sex$predictedSex)), cex=0.8, pch=16)
+dev.off()
+```
+
+# Cell type proportions
+```{r estimate cell type proportions}
+#Cell type
+pData( RGset )[ ,"Array" ] <- "Array.x"
+pData( RGset )[ ,"Basename" ] <- "Basename.x"
+cell <- estimateCellCounts( RGset.drop )
+#save(cell, file=paste0(data_dir,"cell-type-estimates.rda"))
+dim( cell )
+head( cell )
+identical( rownames( cell ),colnames( noob ) ) # A quick sanity check to make sure our samples are in the right order. 
+pd.n <- data.frame( pd,cell )
+```
+
+# Principal components on cell proportions
+```{r principal components on cell proportions}
+prin.cell <- prcomp( t( cell ), center = T, scale. = F ) 
+out.var <- prin.cell$sdev^2 / sum( prin.cell$sdev^2 )
+out.var
+
+
+pdf( paste0(output_dir,"Cell-Type-PCA.pdf" ))
+screeplot( prin.cell, col = "dodgerblue", xlab = "Principal Components of Estimated Cell Type", main = "", cex.lab = 1.3 )
+myColors <- c( "seagreen3","dodgerblue", "darkorchid", "firebrick1", "darkorange", "khaki1" )
+palette( myColors )
+par( mar = c( 0, 0, 0, 0 ) )
+plot.new()
+legend( "bottom", c( "Bcell","CD4T", "CD8T","Gran","Mono", "NK" ), fill = myColors, title = "Principal Components by Estimated Cell Type")
+pairs( prin.cell$x[,1:6], col = as.factor(rownames( prin.cell$x ) ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch = 15 )
+dev.off()
+
+summary( pd.n$Gran )
+pdf( "Cell-Type-Histogram.pdf" )
+hist( pd.n$Gran, breaks = 20, col = "dodgerblue", xlab = "Estimated percent granulocytes", cex.lab = 1.3 )
+hist( pd.n$Mono, breaks = 20, col = "dodgerblue", xlab = "Estimated percent monocytes", cex.lab = 1.3 )
+hist( pd.n$NK, breaks = 20, col = "dodgerblue", xlab = "Estimated percent NK cells", cex.lab = 1.3 )
+hist( pd.n$CD8T, breaks = 20, col = "dodgerblue", xlab = "Estimated percent CD8T", cex.lab = 1.3 )
+hist( pd.n$CD4T, breaks = 20, col = "dodgerblue", xlab = "Estimated percent CD4T", cex.lab = 1.3 )
+dev.off()
+```
+
+# Drop samples with problemmatic cell proportions
+```{r drop samples problem cell proportions}
+#Pick cutoffs for biological ranges for cell type estimates.
+pd.n.drop <- pd.n[ pd.n$Mono < 0.2, ]
+noob.drop <- noob[ ,colnames( noob ) %in% rownames( pd.n.drop ) ]
+beta.noob <- getBeta( noob.drop )
+dim( beta.noob )
+```
+
+# Principal components on noob preprocessed data
+```{r principal components on noob data}
+#Noob PCA plots
+pd.n.drop$gran.quart <- cut2( pd.n.drop$Gran, g = 4 )
+
+prin <- prcomp( t( beta.noob ), center = T, scale. = F )
+out.var <- prin$sdev^2 / sum( prin$sdev^2 )
+out.var[ 1:10 ]
+
+ls()
+#rm( list = c( "RGset", "beta.raw" ) )
+```
+
+# Plot principal components on noob data
+```{r plot principal components on noob data}
+pdf( paste0(output_dir, "PCA-plots-Noob.pdf" ))
+screeplot( prin, col="dodgerblue", xlab="Principal Components of Noob Beta Values", main="", cex.lab=1.3 )
+plot.new()
+palette( myColors )
+par( mar = c( 0, 0, 0, 0 ) )
+legend( "bottom", levels( as.factor( pd.n.drop$gender ) ), fill = myColors, title = "Principal Components by Sex" )
+pairs(prin$x[,1:6], col = as.factor( pd.n.drop$gender ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch = 1, cex = 0.5 )
+plot.new()
+legend( "bottom", levels( as.factor( pd.n.drop$Batch ) ), fill = myColors, title = "Principal Components by Batch" )
+pairs(prin$x[,1:6], col = as.factor( pd.n.drop$Batch ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch = 1, cex = 0.5 )
+plot.new()
+legend( "bottom", levels( as.factor( pd.n.drop$casestatus ) ), fill = myColors, title = "Principal Components by Case Status" )
+pairs( prin$x[,1:6], col = as.factor( pd.n.drop$casestatus ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch = 1, cex = 0.5 )
+plot.new()
+palette( graphColors )
+legend( "bottom", levels( as.factor( pd.n.drop$Array ) ), fill = graphColors, title = "Principal Components by Array Position" )
+pairs( prin$x[,1:6], col = as.factor( pd.n.drop$Array ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch = 1, cex = 0.5 )
+plot.new()
+legend( "bottom", levels( as.factor( pd.n.drop$Slide ) ), fill = graphColors, title = "Principal Components by Slide" )
+pairs( prin$x[,1:6], col = as.factor( pd.n.drop$Slide ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch = 1, cex = 0.5 )
+plot.new()
+legend("bottom", levels( as.factor( pd.n.drop$gran.quart ) ), fill = graphColors, title = "Principal Components by Quartile of Gran" )
+pairs( prin$x[,1:6], col = as.factor( pd.n.drop$gran.quart ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6"), pch = 1, cex = 0.5 )
+dev.off()
+```
+
+# Drop samples with missing data at key covariates
+```{r drop samples missing key covariates}
+#Drop samples with missing data at key covariates
+table( pd.n.drop$gender, useNA = "always" )
+table( pd.n.drop$casestatus, useNA = "always" )
+table( pd.n.drop$smoking, useNA = "always" )
+table( pd.n.drop$Batch, useNA = "always" )
+#No samples missing data, we're okay. But run this line anyway. 
+pd.complete <- pd.n.drop[ !( is.na( pd.n.drop$smoking ) ), ] #Example of how to remove. 
+save(pd.complete, file=paste0(data_dir, "pd-complete.rda"))
+```
+
+# Use Combat to adjust for batch effects
+```{r combat to adjust for batch effects}
+beta.noob.complete <- beta.noob[ ,colnames( beta.noob ) %in% rownames( pd.complete ) ]
+mod <- model.matrix( ~ pd.complete$gender + pd.complete$casestatus + pd.complete$smoking )
+
+combat.beta <- ComBat( dat = beta.noob.complete, batch = pd.complete$Batch, mod = mod ) #Experiencing sva errors
+#Optional, save the cleaned matrix.
+save(combat.beta, file=paste0(data_dir,"combat-beta.rda"))
+combat.beta[ 1:5,1:5 ]
+
+prin <- prcomp( t( combat.beta ), center = T, scale. = F )
+out.var <- prin$sdev^2 / sum( prin$sdev^2 )
+out.var[ 1:10 ]
+
+pd.n.drop$gran.quart <- cut2( pd.n.drop$Gran, g = 4 )
+```
+
+# Plot principal components of combat data
+```{r plot principal components of combat data}
+pdf( paste0(output_dir, "PCA-plots-Noob-Combat.pdf" ))
+screeplot( prin, col = "dodgerblue", xlab = "Principal Components of Noob Beta Values", main = "", cex.lab = 1.3 )
+plot.new()
+palette( myColors )
+par( mar = c( 0, 0, 0, 0 ) )
+legend( "bottom", levels( as.factor( pd.n.drop$gender ) ), fill = myColors, title = "Principal Components by Sex" )
+pairs( prin$x[,1:6], col = as.factor( pd.n.drop$gender ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch=1, cex = 0.5 )
+plot.new()
+legend( "bottom", levels( as.factor( pd.n.drop$Batch ) ), fill = myColors, title = "Principal Components by Batch" )
+pairs( prin$x[,1:6], col = as.factor( pd.n.drop$Batch ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch = 1, cex = 0.5 )
+plot.new()
+legend ("bottom", levels( as.factor( pd.n.drop$casestatus ) ), fill = myColors, title = "Principal Components by Case Status" )
+pairs( prin$x[,1:6], col = as.factor( pd.n.drop$casestatus ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch = 1, cex = 0.5 )
+plot.new()
+palette( graphColors )
+legend( "bottom", levels( as.factor( pd.n.drop$Array ) ), fill = graphColors, title = "Principal Components by Array Position" )
+pairs( prin$x[,1:6], col = as.factor( pd.n.drop$Array ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6"), pch = 1, cex = 0.5 )
+plot.new()
+legend( "bottom", levels( as.factor( pd.n.drop$Slide ) ), fill = graphColors, title = "Principal Components by Slide" )
+pairs( prin$x[,1:6], col = as.factor( pd.n.drop$Slide ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6" ), pch = 1, cex = 0.5 )
+plot.new()
+legend( "bottom", levels( as.factor( pd.n.drop$gran.quart ) ), fill = graphColors, title="Principal Components by Quartile of Gran" )
+pairs( prin$x[,1:6], col = as.factor( pd.n.drop$gran.quart ), labels = c( "PC1", "PC2", "PC3", "PC4","PC5", "PC6"), pch = 1, cex = 0.5 )
+dev.off()
+
+table( pd.n.drop$gran.quart )
+```
+
