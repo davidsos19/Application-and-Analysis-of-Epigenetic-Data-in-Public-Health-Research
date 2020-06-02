@@ -1,0 +1,145 @@
+---
+title: "Johns Hopkins Summer Institute: Epigenomics in Public Health Lab 2020"
+subtitle: "01 Installing and loading packages, reading in datasets"
+author: "Kelly Bakulski, David Sosnowski, Shan Andrews, Brion Maher"
+date: "May 29, 2020"
+output: html_document
+---
+
+# Setting up R markdown format
+```{r setup, include=FALSE, eval=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Installing relevant packages (only do once per computer)
+```{r install packages, include=FALSE, eval=FALSE}
+#If you're running code on your personal computer, set eval=TRUE.
+#Since we're running code on the Cloud, these packages have already been installed and it is not necessary to re-install. 
+
+### Install BiocManager -- Allows user to install Bioconductor packages
+if ( !requireNamespace( "BiocManager" ) ) install.packages( "BiocManager" )
+
+### Install minfi -- 450k analysis package
+BiocManager::install( "bumphunter" ) 
+BiocManager::install( "minfi" )
+
+### Install RColorBrewer -- Useful package that provides color palettes to help visualize data
+install.packages( "RColorBrewer" )
+
+### Install sva -- Functions for batch effect correction
+BiocManager::install( "sva" )
+
+### Install limma -- Functions for single-site association analysis
+BiocManager::install( "limma" )
+
+### Install ggplot2 -- Easy plotting functions
+install.packages( "ggplot2" )
+
+### Install manifest/annotation for the array, will need to update if using EPIC 850k array
+BiocManager::install( c("IlluminaHumanMethylation450kmanifest", "IlluminaHumanMethylation450kanno.ilmn12.hg19"))
+
+### Install Go.db and topGo -- Functions for gene ontology queries
+BiocManager::install( c( "GO.db","topGO","missMethyl", "GEOquery" ) )
+### Install Go.db and topGo -- Functions for gene ontology queries
+BiocManager::install( "missMethyl")
+
+### Install matrixEQTL --	For fast eQTL and meQTL analyses
+install.packages( "MatrixEQTL" )
+
+### Install qqman -- Functions for q-q and manhattan plots
+install.packages( "qqman" )
+
+### Install nlme -- Functions for non-linear mixed effects models
+install.packages( "nlme" )
+
+### Install BiasedUrn -- Functions for hypergenometric distributions
+install.packages( "BiasedUrn" )
+
+### Install sva -- Functions for batch correction
+install.packages( "sva" )
+
+### Install reference package for cell type estimation in adult blood, can switch depending on tissue of interest.
+BiocManager::install( "FlowSorted.Blood.450k" )
+```
+
+# Load relevant packages (do this every time you do an analysis)
+```{r load packages}
+library( minfi )
+library( limma )
+library( matrixStats )
+library( MASS )
+library( abind )
+library (IlluminaHumanMethylation450kmanifest)
+library( IlluminaHumanMethylation450kanno.ilmn12.hg19)
+library( FlowSorted.Blood.450k )
+library( sva )
+library( Hmisc )
+#library( mismethyl ) # Error is mismethyl install
+library( ggplot2 )
+```
+
+# Setting file paths for data, output, scripts
+```{r source data/output}
+# Setting file paths for data, output, scripts
+
+#The rest of this script assumes that your data are in a folder called "project" on the Cloud.
+#It also assumes that your ouptut will be stored in a subfolder called "output" on the Cloud. 
+#As you work on your own computer, you will need to specify the folder locations.
+
+# Folder location of the data files
+#data_dir <- "/cloud/project/"
+data_dir <- "~/Documents/GitHub/Application-and-Analysis-of-Epigenetic-Data-in-Public-Health-Research/data/" #Kelly's personal computer directory
+data_dir
+# Folder location to put the output files
+#output_dir <- "/cloud/project/output/"
+output_dir <- "~/Documents/GitHub/Application-and-Analysis-of-Epigenetic-Data-in-Public-Health-Research/output/" #Kelly's personal computer directory
+output_dir
+# Record the current date for record keeping and appending to output file names
+date<-format(Sys.Date(), "%Y%m%d") 
+date
+```
+
+# Read in the data
+```{r load data}
+pheno <- read.csv( paste0(data_dir, "samplesheet.csv"), header = TRUE, stringsAsFactors = FALSE )
+dim( pheno )
+head( pheno )
+RGset <- read.metharray.exp( file.path( paste0(data_dir, "/idats" )), targets = pheno, verbose = TRUE )
+dim( RGset )
+manifest <- getManifest( RGset )
+str( manifest )
+annotation <- getAnnotation( RGset )
+dim( annotation )
+annotation[ 1:2, ]
+```
+
+# Explore the dataset
+```{r explore dataset}
+typeof( annotation )
+typeof( RGset )
+getClass( RGset )
+manifest
+head( getProbeInfo( manifest ) )
+dim( getProbeInfo( manifest ) )
+table( getProbeInfo( manifest )$Color )
+pd <- pData( RGset )
+table( pd$casestatus )
+table( pd$gender )
+table( pd$casestatus, pd$gender )
+table( pd$Batch)
+table( pd$casestatus, pd$Batch )
+dim( pd )
+length( pd$GEOID )
+summary( pd$age )
+summary( pd$age[ pd$gender == "M" ] )
+summary( pd$age[ pd$gender == "F" ] )
+head( pd )
+```
+
+# Save RGset object
+```{r save RGset}
+# Next time, you won't need to go back to the IDAT files.
+# You can start with the RGset
+
+save(RGset, file=paste0(data_dir, "RGset.rda"))
+```
