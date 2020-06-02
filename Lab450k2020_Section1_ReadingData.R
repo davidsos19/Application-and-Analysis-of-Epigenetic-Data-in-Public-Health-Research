@@ -1,6 +1,6 @@
 #######################################################################
 # EPIGENOMICS IN PUBLIC HEALTH, LAB CLASS
-# Christine Ladd-Acosta, Andrew Jaffe, Kelly Bakulski, Brion Maher
+# Kelly Bakulski, David Sosnowski, Shan Andrews, and Brion Maher
 # Johns Hopkins JUNE 1-4, 2020
 #######################################################################
 
