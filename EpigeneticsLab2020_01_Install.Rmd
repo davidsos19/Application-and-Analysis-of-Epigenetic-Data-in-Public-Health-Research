@@ -74,7 +74,7 @@ library( IlluminaHumanMethylation450kanno.ilmn12.hg19)
 library( FlowSorted.Blood.450k )
 library( sva )
 library( Hmisc )
-#library( mismethyl ) # Error is mismethyl install
+library( missMethyl ) 
 library( ggplot2 )
 ```
 
