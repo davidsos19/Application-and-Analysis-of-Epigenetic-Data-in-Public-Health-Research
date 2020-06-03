@@ -289,8 +289,9 @@ dev.off()
 #Cell type
 pData( RGset )[ ,"Array" ] <- "Array.x"
 pData( RGset )[ ,"Basename" ] <- "Basename.x"
-cell <- estimateCellCounts( RGset.drop )
+#cell <- estimateCellCounts( RGset.drop ) #This command is requiring more memory than we currently have on Cloud. We'll read in the output separately.
 #save(cell, file=paste0(data_dir,"cell-type-estimates.rda"))
+load(file=paste0(data_dir,"cell-type-estimates.rda"))
 dim( cell )
 head( cell )
 identical( rownames( cell ),colnames( noob ) ) # A quick sanity check to make sure our samples are in the right order. 
